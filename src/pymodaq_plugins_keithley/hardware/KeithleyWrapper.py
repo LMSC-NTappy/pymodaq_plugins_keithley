@@ -1,5 +1,5 @@
 from pyvisa import ResourceManager
-
+import numpy as np
 
 class Keithley6487Wrapper:
 
@@ -14,12 +14,13 @@ class Keithley6487Wrapper:
 
         self.current_V: float = 0.0
         self.current_I: float = 0.0
+        self.measurement_obsolete : bool = True
 
     def get_device_infos(self) -> str:
         return self.resource.query("*IDN?")
 
     def reset(self) -> None:
-        self.resource.write("rst; status:preset; *cls;")
+        self.resource.write("*rst; status:preset; *cls;")
 
     def config_mode(self, mode: str = None):
         if mode not in ['CURR', 'VOLT', 'RES', 'CHAR']:
@@ -27,11 +28,17 @@ class Keithley6487Wrapper:
 
         self.resource.write(f"CONF:{mode}")
 
+    def config_zerocheck(self, active: bool = False):
+        if active:
+            self.resource.write("SYST:ZCHeck ON")
+        else:
+            self.resource.write("SYST:ZCHeck OFF")
+
     def config_reading(self):
         self.resource.write(f"FORM:DATA REAL")
-        self.resource.write(f"FORM:ELEM READ VSO")
+        self.resource.write(f"FORM:ELEM READing VSOurce")
 
-    def set_NPLC(self, NPLC: int = 5):
+    def set_nplc(self, NPLC: int = 5):
         self.resource.write(f"CURR: NPLC {NPLC}")
 
     def set_range(self, range: str = "20mA"):
@@ -59,14 +66,14 @@ class Keithley6487Wrapper:
         if oper:
             self.resource.write("SOURce:VOLT:STATe ON")
         else:
-            self.resource.write("SOURce:VOLT:STATe ON")
+            self.resource.write("SOURce:VOLT:STATe OFF")
 
     def read_current_and_vsource(self):
-        vals = self.resource.query_binary_values('READ?')
-        self.current_I = vals[0]
-        self.current_V = vals[1]
-        return vals
-
+        vals = self.resource.query_binary_values('READ?', header_fmt='ieee', data_points=2, is_big_endian=True)
+        self.current_I = np.array([vals[0]])
+        self.current_V = np.array([vals[1]])
+        self.measurement_obsolete = False
+        return [self.current_I, self.current_V]
 
 
     def close(self):

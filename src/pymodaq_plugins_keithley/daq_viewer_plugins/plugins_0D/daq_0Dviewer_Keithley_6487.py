@@ -25,14 +25,17 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
     VISA_rm = ResourceManager()
     com_ports = list(VISA_rm.list_resources())
 
+
+
     params = comon_parameters + [
-        {'title': 'VISA:', 'name': 'VISA_ressources', 'type': 'list', 'limits': com_ports},
+        {'title': 'VISA:', 'name': 'visa', 'type': 'list', 'limits': com_ports},
         {'title': 'Id:', 'name': 'id', 'type': 'text', 'value': ""},
-        {'title': 'Timeout (ms):', 'name': 'timeout', 'type': 'int', 'value': 10000,'default': 10000, 'min': 2000},
+        {'title': 'Timeout (ms):', 'name': 'timeout', 'type': 'int', 'value': 10000, 'default': 10000, 'min': 2000},
         {'title': 'Configuration:', 'name': 'config', 'type': 'group', 'children':
             [
             {'title': 'Range:', 'name': 'range', 'type': 'list', 'value': '20mA', 'default': '20mA', 'limits': ["20mA", "2mA", "200uA", "20uA", "2uA", "200nA", "20nA", "2nA"]},
             {'title': 'NPLC:', 'name': 'nplc', 'type': 'float', 'value': 5.0, 'default': 5.0, 'min': 0.01, 'max': 50},
+            {'title': 'Zerocheck', 'name': 'zerocheck', 'type': 'bool', 'value': True, 'default': True},
             {'title': 'Source Range:', 'name': 'source_range', 'type': 'list', 'value': 10, 'limits': [10, 50, 500]},
             {'title': 'Source Voltage (V):', 'name': 'source_voltage', 'type': 'float', 'value': 0.0, 'default': 5.0, 'min': 0.01, 'max': 50},
             {'title': 'Operate Vsource', 'name': 'source_operate', 'type': 'bool', 'value': False, 'default': False},
@@ -41,7 +44,9 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
     ]
 
     def ini_attributes(self):
-        pass
+        self.controller: Keithley6487Wrapper = None
+
+        self.settings.child('visa').setValue("GPIB0::22::INSTR")
 
     def commit_settings(self, param: Parameter):
         """Apply the consequences of a change of value in the detector settings
@@ -59,6 +64,10 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
             self.controller.set_source_range(range_s=param.value())
         elif param.name() == 'source_voltage':
             self.controller.set_source_voltage(volts=param.value())
+        elif param.name() == 'zerocheck':
+            self.controller.config_zerocheck(active=param.value())
+        elif param.name() == 'source_operate':
+            self.controller.operate_source(oper=param.value())
 
         ##
 
@@ -81,7 +90,7 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
         if self.settings.child('controller_status').value() == "Slave":
             keithley_6487 = None
         else:
-            keithley_6487 = Keithley6487Wrapper(visa_resource=self.settings.child('VISA_ressources').value(),
+            keithley_6487 = Keithley6487Wrapper(visa_resource=self.settings.child('visa').value(),
                                                 timeout=self.settings.child('timeout').value(), )
 
         self.ini_detector_init(old_controller=controller,
@@ -96,9 +105,10 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
         self.controller.config_reading()
 
         # initialize viewers panel with the future type of data
-        self.data_grabed_signal_temp.emit([DataFromPlugins(name='Keithley_6487', data=[np.zeros(1), np.zeros(1)],
+        self.data_grabed_signal_temp.emit([DataFromPlugins(name='Keithley_6487',
+                                                           data=[np.array([0.0]), np.array([0.0])],
                                                            dim='Data0D',
-                                                           labels=['Current', 'Vsource'])])
+                                                           labels=['I', 'Vso'])])
 
         info = f"Initialized - {self.settings.child('controller_status').value()} {dvc}"
         initialized = True
@@ -121,9 +131,12 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
             others optionals arguments
         """
 
-        data_tot = self.controller.read_current_and_vsource()
-        self.data_grabed_signal.emit([DataFromPlugins(name='Keithley_6487', data=data_tot,
-                                                      dim='Data0D', labels=['Current', 'Vsource'])])
+        data = self.controller.read_current_and_vsource()
+        self.data_grabed_signal.emit([DataFromPlugins(name='Keithley_6487',
+                                                      data=data,
+                                                      dim='Data0D',
+                                                      labels=['I', 'Vso'],
+                                                      )])
 
         #########################################################
         #

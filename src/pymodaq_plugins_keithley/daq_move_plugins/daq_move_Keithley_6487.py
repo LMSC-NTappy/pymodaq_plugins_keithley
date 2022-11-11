@@ -23,7 +23,13 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
     is_multiaxes = False
     axes_names = ['Vsource']
 
-    params = [{'title': 'Source Range:', 'name': 'source_range', 'type': 'list', 'value': 10, 'limits': [10, 50, 500]},
+    VISA_rm = ResourceManager()
+    com_ports = list(VISA_rm.list_resources())
+
+    params = [{'title': 'Controller Status:', 'name': 'controller_status', 'type': 'list', 'value': 'Master', 'limits': ['Master', 'Slave']},
+              {'title': 'VISA:', 'name': 'visa', 'type': 'list', 'limits': com_ports},
+              {'title': 'Id:', 'name': 'id', 'type': 'text', 'value': ""},
+              {'title': 'Source Range:', 'name': 'source_range', 'type': 'list', 'value': 10, 'limits': [10, 50, 500]},
               {'title': 'Operate Vsource', 'name': 'source_operate', 'type': 'bool', 'value': False, 'default': False},
               ] + comon_parameters_fun(is_multiaxes, axes_names)
 
@@ -32,6 +38,7 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         #  autocompletion
         self.controller: Keithley6487Wrapper = None
 
+        self.settings.child('visa').setValue("GPIB0::22::INSTR")
 
     def get_actuator_value(self):
         """Get the current value from the hardware with scaling conversion.
@@ -40,17 +47,26 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         -------
         float: The position obtained after scaling conversion.
         """
-        if self.settings.child('controller_status').value() == "Slave":
-            pos = self.controller.current_V
-        else:
-            pos = self.controller.read_current_and_vsource()[1]
-
-        pos = self.get_position_with_scaling(pos)
-        return pos
+        # if self.settings.child('controller_status').value() == "Slave":
+        #     if not self.controller.measurement_obsolete:
+        #         pos = self.controller.current_V
+        #     else:
+        #         pos = self.controller.read_current_and_vsource()[1]
+        #     self.controller.measurement_obsolete = True
+        # else:
+        #     pos = self.controller.read_current_and_vsource()[1]
+        #
+        # pos = self.get_position_with_scaling(pos)
+        # print(pos)
+        return self.target_value
 
     def close(self):
         """Terminate the communication protocol"""
         self.controller.close()
+
+    def update_bounds(self,newbound):
+        self.settings.child('bounds', 'max_bound').setValue(newbound)
+        self.settings.child('bounds', 'min_bound').setValue(-1.0*newbound)
 
     def commit_settings(self, param: Parameter):
         """Apply the consequences of a change of value in the detector settings
@@ -60,11 +76,11 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         param: Parameter
             A given parameter (within detector_settings) whose value has been changed by the user
         """
-        ## TODO for your custom plugin
-        if param.name() == "a_parameter_you've_added_in_self.params":
-           self.controller.your_method_to_apply_this_param_change()
-        else:
-            pass
+        if param.name() == 'source_range':
+            self.controller.set_source_range(range_s=param.value())
+            self.update_bounds(float(param.value()))
+        elif param.name() == 'source_operate':
+            self.controller.operate_source(oper=param.value())
 
     def ini_stage(self, controller=None):
         """Actuator communication initialization
@@ -84,11 +100,21 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         if self.settings.child('controller_status').value() == "Slave":
             keithley_6487 = None
         else:
-            keithley_6487 = Keithley6487Wrapper(visa_resource=self.settings.child('VISA_ressources').value(),
-                                                timeout=self.settings.child('timeout').value(),)
+            keithley_6487 = Keithley6487Wrapper(visa_resource=self.settings.child('visa').value(),
+                                                timeout=1000,)
 
         self.ini_stage_init(old_controller=controller,
                             new_controller=keithley_6487)
+
+        dvc = self.controller.get_device_infos()
+        self.settings.child('id').setValue(dvc)
+
+        if self.settings.child('controller_status').value != "Slave":
+            # Reset comm state
+            self.controller.reset()
+            # Update things in the interface
+            self.controller.config_mode('CURR')
+            self.controller.config_reading()
 
         info = "Whatever info you want to log"
         initialized = True
@@ -105,10 +131,9 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         value = self.check_bound(value)  #if user checked bounds, the defined bounds are applied here
         self.target_value = value
         value = self.set_position_with_scaling(value)  # apply scaling if the user specified one
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        self.controller.your_method_to_set_an_absolute_value(value)  # when writing your own plugin replace this line
-        self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
+
+        self.controller.set_source_voltage(volts=value)  # when writing your own plugin replace this line
+        self.emit_status(ThreadCommand('Update_Status', [f'Source Voltage set to {value}']))
 
 
     def move_rel(self, value):
@@ -122,28 +147,18 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         self.target_value = value + self.current_position
         value = self.set_position_relative_with_scaling(value)
 
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        self.controller.your_method_to_set_a_relative_value(value)  # when writing your own plugin replace this line
-        self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
-
+        self.controller.set_source_voltage(volts=self.target_value)  # when writing your own plugin replace this line
+        self.emit_status(ThreadCommand('Update_Status', [f'Source Voltage set to {self.target_value}']))
 
     def move_home(self):
         """Call the reference method of the controller"""
-
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        self.controller.your_method_to_get_to_a_known_reference()  # when writing your own plugin replace this line
-        self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
+        self.controller.set_source_voltage(volts=0.0)  # when writing your own plugin replace this line
+        self.emit_status(ThreadCommand('Update_Status', [f'Source Voltage set to 0.0']))
 
 
     def stop_motion(self):
       """Stop the actuator and emits move_done signal"""
-
-      ## TODO for your custom plugin
-      raise NotImplemented  # when writing your own plugin remove this line
-      self.controller.your_method_to_stop_positioning()  # when writing your own plugin replace this line
-      self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
+      pass
 
 
 if __name__ == '__main__':
