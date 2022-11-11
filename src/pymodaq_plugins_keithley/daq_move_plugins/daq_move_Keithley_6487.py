@@ -7,7 +7,7 @@ class PythonWrapperOfYourInstrument:
     pass
 
 
-class DAQ_Move_Template(DAQ_Move_base):
+class DAQ_Move_Keithley_6487(DAQ_Move_base):
     """Plugin for the Template Instrument
 
     This object inherits all functionality to communicate with PyMoDAQ Module through inheritance via DAQ_Move_base
@@ -21,9 +21,9 @@ class DAQ_Move_Template(DAQ_Move_base):
     # TODO add your particular attributes here if any
 
     """
-    _controller_units = 'whatever'  # TODO for your plugin: put the correct unit here
+    _controller_units = 'V'  # TODO for your plugin: put the correct unit here
     is_multiaxes = False  # TODO for your plugin set to True if this plugin is controlled for a multiaxis controller
-    axes_names = ['Axis1', 'Axis2']  # TODO for your plugin: complete the list
+    axes_names = ['Vsource']  # TODO for your plugin: complete the list
 
     params = [   # TODO for your custom plugin: elements to be added here as dicts in order to control your custom stage
                 ] + comon_parameters_fun(is_multiaxes, axes_names)
