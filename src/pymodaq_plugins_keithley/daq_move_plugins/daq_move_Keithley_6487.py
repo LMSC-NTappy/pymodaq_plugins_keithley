@@ -1,40 +1,37 @@
+import numpy as np
+
+from pyvisa import ResourceManager
+
 from pymodaq.control_modules.move_utility_classes import DAQ_Move_base, comon_parameters_fun, main  # common set of parameters for all actuators
 from pymodaq.utils.daq_utils import ThreadCommand # object used to send info back to the main thread
 from pymodaq.utils.parameter import Parameter
-
-class PythonWrapperOfYourInstrument:
-    #  TODO Replace this fake class with the import of the real python wrapper of your instrument
-    pass
-
+from pymodaq_plugins_keithley.hardware.KeithleyWrapper import Keithley6487Wrapper
 
 class DAQ_Move_Keithley_6487(DAQ_Move_base):
-    """Plugin for the Template Instrument
+    """Plugin for the Keithley 6487 voltage source.
 
     This object inherits all functionality to communicate with PyMoDAQ Module through inheritance via DAQ_Move_base
     It then implements the particular communication with the instrument
 
     Attributes:
     -----------
-    controller: object
-        The particular object that allow the communication with the hardware, in general a python wrapper around the
-         hardware library
+    controller:
     # TODO add your particular attributes here if any
 
     """
-    _controller_units = 'V'  # TODO for your plugin: put the correct unit here
-    is_multiaxes = False  # TODO for your plugin set to True if this plugin is controlled for a multiaxis controller
-    axes_names = ['Vsource']  # TODO for your plugin: complete the list
+    _controller_units = 'V'
+    is_multiaxes = False
+    axes_names = ['Vsource']
 
-    params = [   # TODO for your custom plugin: elements to be added here as dicts in order to control your custom stage
-                ] + comon_parameters_fun(is_multiaxes, axes_names)
+    params = [{'title': 'Source Range:', 'name': 'source_range', 'type': 'list', 'value': 10, 'limits': [10, 50, 500]},
+              {'title': 'Operate Vsource', 'name': 'source_operate', 'type': 'bool', 'value': False, 'default': False},
+              ] + comon_parameters_fun(is_multiaxes, axes_names)
 
     def ini_attributes(self):
         #  TODO declare the type of the wrapper (and assign it to self.controller) you're going to use for easy
         #  autocompletion
-        self.controller: PythonWrapperOfYourInstrument = None
+        self.controller: Keithley6487Wrapper = None
 
-        #TODO declare here attributes you want/need to init with a default value
-        pass
 
     def get_actuator_value(self):
         """Get the current value from the hardware with scaling conversion.
@@ -43,17 +40,17 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         -------
         float: The position obtained after scaling conversion.
         """
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        pos = self.controller.your_method_to_get_the_actuator_value()  # when writing your own plugin replace this line
+        if self.settings.child('controller_status').value() == "Slave":
+            pos = self.controller.current_V
+        else:
+            pos = self.controller.read_current_and_vsource()[1]
+
         pos = self.get_position_with_scaling(pos)
         return pos
 
     def close(self):
         """Terminate the communication protocol"""
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        #  self.controller.your_method_to_terminate_the_communication()  # when writing your own plugin replace this line
+        self.controller.close()
 
     def commit_settings(self, param: Parameter):
         """Apply the consequences of a change of value in the detector settings
@@ -84,12 +81,17 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
             False if initialization failed otherwise True
         """
 
-        raise NotImplemented  # TODO when writing your own plugin remove this line and modify the one below
+        if self.settings.child('controller_status').value() == "Slave":
+            keithley_6487 = None
+        else:
+            keithley_6487 = Keithley6487Wrapper(visa_resource=self.settings.child('VISA_ressources').value(),
+                                                timeout=self.settings.child('timeout').value(),)
+
         self.ini_stage_init(old_controller=controller,
-                            new_controller=PythonWrapperOfYourInstrument())
+                            new_controller=keithley_6487)
 
         info = "Whatever info you want to log"
-        initialized = self.controller.a_method_or_atttribute_to_check_if_init()  # todo
+        initialized = True
         return info, initialized
 
     def move_abs(self, value):

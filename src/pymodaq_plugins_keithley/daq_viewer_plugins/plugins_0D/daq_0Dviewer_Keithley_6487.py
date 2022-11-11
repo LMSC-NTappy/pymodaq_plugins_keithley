@@ -25,22 +25,20 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
     VISA_rm = ResourceManager()
     com_ports = list(VISA_rm.list_resources())
 
-    params = comon_parameters + [{'title': 'VISA:', 'name': 'VISA_ressources', 'type': 'list', 'limits': com_ports},
-                                 {'title': 'Id:', 'name': 'id', 'type': 'text', 'value': ""},
-                                 {'title': 'Timeout (ms):', 'name': 'timeout', 'type': 'int', 'value': 10000,
-                                  'default': 10000, 'min': 2000},
-                                 {'title': 'Configuration:', 'name': 'config', 'type': 'group', 'children': [
-                                     {'title': 'Range:', 'name': 'range', 'type': 'list', 'value': '20mA',
-                                      'default': '20mA',
-                                      'limits': ["20mA", "2mA", "200uA", "20uA", "2uA", "200nA", "20nA", "2nA"]},
-                                     {'title': 'NPLC:', 'name': 'nplc', 'type': 'float', 'value': 5.0, 'default': 5.0,
-                                      'min': 0.01, 'max': 50},
-                                     {'title': 'Source Range:', 'name': 'source_range', 'type': 'list', 'value': 10,
-                                      'limits': [10, 50, 500]},
-                                     {'title': 'Source Voltage (V):', 'name': 'source_voltage', 'type': 'float',
-                                      'value': 0.0, 'default': 5.0, 'min': 0.01, 'max': 50},
-                                 ]},
-                                 ]
+    params = comon_parameters + [
+        {'title': 'VISA:', 'name': 'VISA_ressources', 'type': 'list', 'limits': com_ports},
+        {'title': 'Id:', 'name': 'id', 'type': 'text', 'value': ""},
+        {'title': 'Timeout (ms):', 'name': 'timeout', 'type': 'int', 'value': 10000,'default': 10000, 'min': 2000},
+        {'title': 'Configuration:', 'name': 'config', 'type': 'group', 'children':
+            [
+            {'title': 'Range:', 'name': 'range', 'type': 'list', 'value': '20mA', 'default': '20mA', 'limits': ["20mA", "2mA", "200uA", "20uA", "2uA", "200nA", "20nA", "2nA"]},
+            {'title': 'NPLC:', 'name': 'nplc', 'type': 'float', 'value': 5.0, 'default': 5.0, 'min': 0.01, 'max': 50},
+            {'title': 'Source Range:', 'name': 'source_range', 'type': 'list', 'value': 10, 'limits': [10, 50, 500]},
+            {'title': 'Source Voltage (V):', 'name': 'source_voltage', 'type': 'float', 'value': 0.0, 'default': 5.0, 'min': 0.01, 'max': 50},
+            {'title': 'Operate Vsource', 'name': 'source_operate', 'type': 'bool', 'value': False, 'default': False},
+            ]
+        },
+    ]
 
     def ini_attributes(self):
         pass
@@ -57,6 +55,11 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
             self.controller.set_range(range=param.value())  # when writing your own plugin replace this line
         elif param.name() == 'nplc':
             self.controller.set_nplc(nplc=param.value())
+        elif param.name() == 'source_range':
+            self.controller.set_source_range(range_s=param.value())
+        elif param.name() == 'source_voltage':
+            self.controller.set_source_voltage(volts=param.value())
+
         ##
 
     def ini_detector(self, controller=None):
