@@ -38,8 +38,8 @@ class Keithley6487Wrapper:
         self.resource.write(f"FORM:DATA REAL")
         self.resource.write(f"FORM:ELEM READing VSOurce")
 
-    def set_nplc(self, NPLC: int = 5):
-        self.resource.write(f"CURR: NPLC {NPLC}")
+    def set_nplc(self, nplc: float = 5.0):
+        self.resource.write(f"CURR: NPLC {nplc}")
 
     def set_range(self, range: str = "20mA"):
         RNGEXP = {"20mA": -2,  # 2e-2
@@ -75,6 +75,8 @@ class Keithley6487Wrapper:
         self.measurement_obsolete = False
         return [self.current_I, self.current_V]
 
+    def abort(self):
+        self.resource.write("INIT:ABORt")
 
     def close(self):
         self.resource.close()

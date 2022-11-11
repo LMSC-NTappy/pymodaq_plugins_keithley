@@ -156,6 +156,7 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
         """Stop the current grab hardware wise if necessary"""
         # raise NotImplemented  # when writing your own plugin remove this line
         # self.controller.your_method_to_stop_acquisition()  # when writing your own plugin replace this line
+
         self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
         ##############################
         return ''

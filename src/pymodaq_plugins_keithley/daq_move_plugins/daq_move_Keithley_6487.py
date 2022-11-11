@@ -101,7 +101,7 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
             keithley_6487 = None
         else:
             keithley_6487 = Keithley6487Wrapper(visa_resource=self.settings.child('visa').value(),
-                                                timeout=1000,)
+                                                timeout=1000)
 
         self.ini_stage_init(old_controller=controller,
                             new_controller=keithley_6487)
