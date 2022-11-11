@@ -1,5 +1,4 @@
 import numpy as np
-
 from pyvisa import ResourceManager
 
 from pymodaq.daq_utils.daq_utils import ThreadCommand
@@ -96,13 +95,17 @@ class DAQ_0DViewer_Keithley_6487(DAQ_Viewer_base):
         self.ini_detector_init(old_controller=controller,
                                new_controller=keithley_6487)
 
-        # Reset comm state
-        self.controller.reset()
+
         # Update things in the interface
         dvc = self.controller.get_device_infos()
         self.settings.child('id').setValue(dvc)
-        self.controller.config_mode('CURR')
-        self.controller.config_reading()
+
+        if self.settings.child('controller_status').value != "Slave":
+            # Reset comm state
+            self.controller.reset()
+            # Update things in the interface
+            self.controller.config_mode('CURR')
+            self.controller.config_reading()
 
         # initialize viewers panel with the future type of data
         self.data_grabed_signal_temp.emit([DataFromPlugins(name='Keithley_6487',

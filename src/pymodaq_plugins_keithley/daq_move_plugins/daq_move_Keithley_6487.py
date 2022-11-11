@@ -58,7 +58,7 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         #
         # pos = self.get_position_with_scaling(pos)
         # print(pos)
-        return self.target_value
+        return self.target_position
 
     def close(self):
         """Terminate the communication protocol"""
@@ -129,7 +129,7 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         """
 
         value = self.check_bound(value)  #if user checked bounds, the defined bounds are applied here
-        self.target_value = value
+        self.target_position = value
         value = self.set_position_with_scaling(value)  # apply scaling if the user specified one
 
         self.controller.set_source_voltage(volts=value)  # when writing your own plugin replace this line
@@ -144,11 +144,11 @@ class DAQ_Move_Keithley_6487(DAQ_Move_base):
         value: (float) value of the relative target positioning
         """
         value = self.check_bound(self.current_position + value) - self.current_position
-        self.target_value = value + self.current_position
+        self.target_position = value + self.current_position
         value = self.set_position_relative_with_scaling(value)
 
-        self.controller.set_source_voltage(volts=self.target_value)  # when writing your own plugin replace this line
-        self.emit_status(ThreadCommand('Update_Status', [f'Source Voltage set to {self.target_value}']))
+        self.controller.set_source_voltage(volts=self.target_position)  # when writing your own plugin replace this line
+        self.emit_status(ThreadCommand('Update_Status', [f'Source Voltage set to {self.target_position}']))
 
     def move_home(self):
         """Call the reference method of the controller"""
